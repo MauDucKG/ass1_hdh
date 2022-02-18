@@ -53,8 +53,11 @@ static struct page_table_t * get_page_table(
 	int i;
 	for (i = 0; i < seg_table->size; i++) {
 		// Enter your code here
-
 		
+		if(index == seg_table->table[i].v_index)
+		{
+			return seg_table->table[i].pages;
+		}
 	}
 	return NULL;
 
