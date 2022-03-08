@@ -144,6 +144,45 @@ int free_mem(addr_t address, struct pcb_t * proc) {
 	 * 	  the process [proc].
 	 * 	- Remember to use lock to protect the memory from other
 	 * 	  processes.  */
+	pthread_mutex_lock(&mem_lock);  // use lock to protect the memory
+	addr_t physical_addr;
+	addr_t virtual_addr = address;
+
+	if(translate(address,&physical_addr,proc)){	// check address is valid and get physical_addr
+		addr_t physical_page=physical_addr>>OFFSET_LEN;
+
+		while(physical_page!=-1) { // physical page = -1 => last page
+			_mem_stat[physical_page].proc=0; //Set flag [proc] back to zero
+			addr_t segIndex = get_first_lv(virtual_addr);
+			addr_t pageIndex = get_second_lv(virtual_addr);
+
+			int found = 0;
+			for(int k = 0; k < proc->seg_table->size && !found; k++) {  //First, search the segment
+                if( proc->seg_table->table[k].v_index == seg_idx ){
+                // Found segment -> search page:
+                    for(int l = 0; l < proc->seg_table->table[k].pages->size; l++) {
+                        if(proc->seg_table->table[k].pages->table[l].v_index== page_idx) {
+                        //Found page -> free page
+                            for(int m = l; m < proc->seg_table->table[k].pages->size - 1; m++)//Rearrange page table
+                            proc->seg_table->table[k].pages->table[m]= proc->seg_table->table[k].pages->table[m + 1];
+
+                            proc->seg_table->table[k].pages->size--;
+                            if(proc->seg_table->table[k].pages->size == 0){//If page empty
+                                free(proc->seg_table->table[k].pages);
+                                for(m = k; m < proc->seg_table->size - 1; m++)//Rearrange segment table
+                                    proc->seg_table->table[m]= proc->seg_table->table[m + 1];
+                                proc->seg_table->size--;
+                            }
+                            found = 1;
+                            break;
+                        }
+                    }
+                }
+            }
+		}
+	}
+
+	pthread_mutex_unlock(&mem_lock);    // unlock
 	return 0;
 }
 
