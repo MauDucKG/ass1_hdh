@@ -209,27 +209,29 @@ int free_mem(addr_t address, struct pcb_t * proc) {
 
 			int found = 0;
 			for(int k = 0; k < proc->seg_table->size && !found; k++) {  //First, search the segment
-                if( proc->seg_table->table[k].v_index == seg_idx ){
-                // Found segment -> search page:
-                    for(int l = 0; l < proc->seg_table->table[k].pages->size; l++) {
-                        if(proc->seg_table->table[k].pages->table[l].v_index== page_idx) {
-                        //Found page -> free page
-                            for(int m = l; m < proc->seg_table->table[k].pages->size - 1; m++)//Rearrange page table
-                            proc->seg_table->table[k].pages->table[m]= proc->seg_table->table[k].pages->table[m + 1];
+				if( proc->seg_table->table[k].v_index == segIndex ){
+				// Found segment -> search page:
+				    for(int l = 0; l < proc->seg_table->table[k].pages->size; l++) {
+					if(proc->seg_table->table[k].pages->table[l].v_index== pageIndex) {
+					//Found page -> free page
+					    int m;
+					    for( m = l; m < proc->seg_table->table[k].pages->size - 1; m++)//Rearrange page table
+					    proc->seg_table->table[k].pages->table[m]= proc->seg_table->table[k].pages->table[m + 1];
 
-                            proc->seg_table->table[k].pages->size--;
-                            if(proc->seg_table->table[k].pages->size == 0){//If page empty
-                                free(proc->seg_table->table[k].pages);
-                                for(m = k; m < proc->seg_table->size - 1; m++)//Rearrange segment table
-                                    proc->seg_table->table[m]= proc->seg_table->table[m + 1];
-                                proc->seg_table->size--;
-                            }
-                            found = 1;
-                            break;
-                        }
-                    }
-                }
-            }
+					    proc->seg_table->table[k].pages->size--;
+					    if(proc->seg_table->table[k].pages->size == 0){//If page empty
+						free(proc->seg_table->table[k].pages);
+						for(m = k; m < proc->seg_table->size - 1; m++)//Rearrange segment table
+						    proc->seg_table->table[m]= proc->seg_table->table[m + 1];
+						proc->seg_table->size--;
+					    }
+					    found = 1;
+					    break;
+					}
+				    }
+				}
+            		}
+			physical_page = _mem_stat[physical_page].next;
 		}
 	}
 
