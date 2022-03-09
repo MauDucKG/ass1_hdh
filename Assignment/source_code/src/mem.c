@@ -119,7 +119,19 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 	 * to know whether this page has been used by a process.
 	 * For virtual memory space, check bp (break pointer).
 	 * */
-	
+	int page_avail = 0;
+	for(int i = 0; i < NUM_PAGES; i++) //Check if ram memory space is avaiable or not
+	{
+		if(_mem_stat[i].proc == 0)
+		{
+			page_avail++;
+		}
+		if(page_avail == num_pages && proc->bp + num_pages * PAGE_SIZE <= RAM_SIZE)
+		{
+			mem_avail = 1;
+			break;
+		}
+	}
 	if (mem_avail) {
 		/* We could allocate new memory region to the process */
 		ret_mem = proc->bp;
@@ -130,6 +142,45 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 		 * 	- Add entries to segment table page tables of [proc]
 		 * 	  to ensure accesses to allocated memory slot is
 		 * 	  valid. */
+		int pre_idx, page_num = 0;
+		for(int i = 0; i < NUM_PAGES; i++){
+			if(_mem_stat[i].proc == 0){
+				_mem_stat[i].proc = proc->pid;
+				_mem_stat[i].index = page_num;
+				if(_mem_stat[i].index != 0) _mem_stat[pre_idx].next = i;
+				pre_idx = i;
+				struct seg_table_t * seg_table = proc->seg_table;
+				if(seg_table->table[0].pages == NULL) seg_table->size = 0;
+				addr_t virtual_addr = ret_mem + (page_num << OFFSET_LEN) ;
+				int isFound = 0;
+				addr_t seg_idx = get_first_lv(virtual_addr);  
+				addr_t page_idx = get_second_lv(virtual_addr);
+				for(int j = 0; j < seg_table->size; j++){	
+					if( seg_table->table[j].v_index == seg_idx ){
+						isFound = 1;
+						struct page_table_t * page_table = seg_table->table[j].pages;
+						page_table->table[page_table->size].v_index = page_idx;
+						page_table->table[page_table->size].p_index = i;
+						page_table->size++;
+						break;
+					}
+				}
+				if(!isFound) {
+					seg_table->table[seg_table->size].v_index = seg_idx;
+					seg_table->table[seg_table->size].pages = (struct page_table_t *)malloc(sizeof(struct page_table_t));
+					seg_table->table[seg_table->size].pages->table[0].v_index = page_idx;
+					seg_table->table[seg_table->size].pages->table[0].p_index = i;
+					seg_table->table[seg_table->size].pages->size = 1;
+					seg_table->size++;
+				}
+
+				page_num++; //update page index
+				if(page_num == num_pages){
+					_mem_stat[i].next = -1;
+					break;
+				}
+			}
+		}
 	}
 	pthread_mutex_unlock(&mem_lock);
 	return ret_mem;
